@@ -1972,14 +1972,14 @@ contract BaokuNFT is ERC721, Ownable{
     }
 
     // @dev get current edition number by token ID
-    function current(uint256 _tokenId) internal view returns(uint256){
+    function current(uint256 _tokenId) public view returns(uint256){
         return _tokenCurrentNumber[_tokenId];
     }
 
     // @dev mint edition Id to target address
     function safeMintEdition(uint256 _tokenId, address _to) internal {
         require(_to != address(0) ,"Edition controller: transfer to zero address");
-        uint256 editionId = current(_tokenId);
+        uint256 editionId = current(_tokenId) + 1;
         require(editionId <= _totalIssuedAmount[_tokenId], "Edition controller: edition number is bigger than total supply");
         increment(_tokenId, 1);
         _balances[_to][_tokenId] += 1;
@@ -1989,7 +1989,7 @@ contract BaokuNFT is ERC721, Ownable{
 
     // @dev mint batch edition number by token ID to users
     function safeMintBatchEdition(uint256 _tokenId, address[] memory _accounts) internal{
-        uint256 _currentId = current(_tokenId);
+        uint256 _currentId = current(_tokenId) + 1;
         uint256 _lastId = _currentId + _accounts.length - 1;
         require(_lastId <= _totalIssuedAmount[_tokenId], "Edition controller: edition number is bigger than total supply");
         for (uint256 i =0; i <_accounts.length; i++){
