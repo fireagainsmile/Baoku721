@@ -1866,32 +1866,19 @@ abstract contract Pausable is Context{
     }
 }
 
-// File: @ehouseChina/contracts/Baoku721.sol
-
-// ?burnable, erc721metaURI, owner, pausable,
-/**
- * @title Baoku721.sol Non-Fungible Token Standard basic implementation
- * @dev see  xxxlink
- */
-
-interface BaokuDigitalizedProducts {
-
-    event ProductsIssued(); // emit when nft is minted with amount of digital products
-    event ProductsTransferred(); // emit when digital products changed the owner
-
-    function issueProducts(); // mint nft, records digital information
-    function issueFollowOnProducts(); // follow-on
-    function mintEditionToUser(); // ？@dev how to do the initial transferring
-    function mintBatchEdition(); // mint batch edition id to user list
-    function transferEdition(); // Baoku digitalized products could transfer from one owner to another owner
-
-    // other query interfaces
-    // balance, balance of, all properties .etc
-}
-
+// File: @ehouseChina/contracts/BaokuNFT.sol
 contract BaokuNFT is ERC721, Ownable{
     using SafeMath for uint256;
+    using Strings for uint256;
 
+    // @dev this is used to record NFT meta data
+    struct digitalizedProductsMeta{
+        string name; //名称
+        string productId; // 商品编号
+        string productType; //商品类型
+        string authors; //作者
+        string copyRightOwner; //版权所有人
+    }
     //contracts events;
     event TransferredSingleEdition(uint256 indexed tokenId, uint256 indexed editionId, address from, address to);
     event TransferredBatchEdition(uint256 indexed tokenId, address from, address[] to);
@@ -1910,16 +1897,65 @@ contract BaokuNFT is ERC721, Ownable{
     mapping(uint256 => uint256) private _tokenCurrentNumber;
     // @dev mapping from token id to account balances
     mapping(address => mapping (uint256 => uint256)) private _balances;
+    // @dev mapping token id with digital product meta data
+    mapping(uint256 => digitalizedProductsMeta) private _tokenMeta;
+    // Optional mapping for token URIs
+    mapping(uint256 => string) private _tokenURIs;
 
     // @dev contract constructor
     constructor(string memory name, string memory symbol)  ERC721(name, symbol) {
     }
 
+    /**
+    * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        _requireMinted(tokenId);
+
+        string memory _tokenURI = _tokenURIs[tokenId];
+        string memory base = _baseURI();
+
+        // If there is no base URI, return the token URI.
+        if (bytes(base).length == 0) {
+            return _tokenURI;
+        }
+        // If both are set, concatenate the baseURI and tokenURI (via abi.encodePacked).
+        if (bytes(_tokenURI).length > 0) {
+            return string(abi.encodePacked(base, _tokenURI));
+        }
+
+        return super.tokenURI(tokenId);
+    }
+
+    /**
+     * @dev Sets `_tokenURI` as the tokenURI of `tokenId`.
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
+     */
+    function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
+        require(_exists(tokenId), "ERC721URIStorage: URI set of nonexistent token");
+        _tokenURIs[tokenId] = _tokenURI;
+    }
+
+
+    // @dev get digitalized product meta data
+    function tokenMeta(uint256 _tokenId) external view returns (string memory, string memory,string memory,string memory,string memory){
+        require(_exists(_tokenId),"BaoKuNFT: token does not exist");
+        return (_tokenMeta[_tokenId].name, _tokenMeta[_tokenId].productId, _tokenMeta[_tokenId].productType, _tokenMeta[_tokenId].authors, _tokenMeta[_tokenId].copyRightOwner);
+    }
+
+    // @dev get the edition total supply
+    function editionTotalSupply(uint256 _tokenId) external view returns(uint256){
+        require(_exists(_tokenId),"BaoKuNFT: token does not exist");
+        return _totalIssuedAmount[_tokenId];
+    }
 
     // @dev get the owner of edition in token ID
     function editionOwner(uint256 _tokenId, uint256 _editionId) external view returns(address){
         require(_exists(_tokenId),"BaoKuNFT: token does not exist");
-        require(_editionId<= current(), "BaoKuNFT: edition is not claimed");
+        require(_editionId <= current(_tokenId), "BaoKuNFT: edition is not claimed");
         return _editionOwner[_tokenId][_editionId];
     }
 
@@ -1942,11 +1978,11 @@ contract BaokuNFT is ERC721, Ownable{
 
     // @dev mint edition Id to target address
     function safeMintEdition(uint256 _tokenId, address _to) internal {
-        require(to != address(0) ,"Edition controller: transfer to zero address");
+        require(_to != address(0) ,"Edition controller: transfer to zero address");
         uint256 editionId = current(_tokenId);
         require(editionId <= _totalIssuedAmount[_tokenId], "Edition controller: edition number is bigger than total supply");
         increment(_tokenId, 1);
-        _balances[to][_tokenId] += 1;
+        _balances[_to][_tokenId] += 1;
         _editionOwner[_tokenId][editionId] = _to;
         emit TransferredSingleEdition(_tokenId, editionId, _msgSender(), _to);
     }
@@ -1954,8 +1990,8 @@ contract BaokuNFT is ERC721, Ownable{
     // @dev mint batch edition number by token ID to users
     function safeMintBatchEdition(uint256 _tokenId, address[] memory _accounts) internal{
         uint256 _currentId = current(_tokenId);
-        uint256 _lastId = currentId + _accounts.length - 1;
-        require(lastId <= _totalIssuedAmount[_tokenId], "Edition controller: edition number is bigger than total supply");
+        uint256 _lastId = _currentId + _accounts.length - 1;
+        require(_lastId <= _totalIssuedAmount[_tokenId], "Edition controller: edition number is bigger than total supply");
         for (uint256 i =0; i <_accounts.length; i++){
             require(_accounts[i] != address(0), "Edition controller: transfer to zero address");
         }
@@ -1975,28 +2011,28 @@ contract BaokuNFT is ERC721, Ownable{
         _editionOwner[_tokenId][_editionId] = _to;
         _balances[_from][_tokenId] -= 1;
         _balances[_to][_tokenId] += 1;
-        emit TransferredSingleEdition(_tokenId, _editionId, _msgSender(), _to);
+        emit TransferredSingleEdition(_tokenId, _editionId, _from, _to);
     }
 
 
-    // todo
     // initial issue products
-    function issueProducts(uint256 _tokenId, uint256 _supply, address _to){
+    function issueProducts(uint256 _tokenId, uint256 _supply, address _to, digitalizedProductsMeta memory _dpm, string memory _tokenURI )public onlyOwner{
         require(_supply <= _MAX_SUPPLY, "BaoKuNFT: exceeds max supply");
-        _safeMint(_to, _tokenId, "");
+        _safeMint(_to, _tokenId);
         //mint token and initial edition owner
         _totalIssuedAmount[_tokenId] = _supply;
+        _tokenMeta[_tokenId] = _dpm;
+        _setTokenURI(_tokenId, _tokenURI);
         emit TokenIssued(_tokenId, _supply, _to);
     }
 
     // issue follow-on products, mint amount products of exist token id
 
-    function issueFollowOnProducts(uint256 _tokenId, uint256 _amount){
+    function issueFollowOnProducts(uint256 _tokenId, uint256 _amount)public onlyOwner {
         // @dev validate tokenId
         require(_exists(_tokenId),"BaoKuNFT: token does not exist");
         require(_amount + _totalIssuedAmount[_tokenId] <= _MAX_SUPPLY,"BaoKuNFT: exceeds max supply");
-        _totalIssuedAmount += _amount;
-        // todo emit event
+        _totalIssuedAmount[_tokenId] += _amount;
         address _owner = ownerOf(_tokenId);
         emit FollowOnEditionsIssued(_tokenId, _amount, _owner);
         // initial edition ids owner
@@ -2014,153 +2050,8 @@ contract BaokuNFT is ERC721, Ownable{
         safeMintBatchEdition(_tokenId, _accounts);
     }
 
-    function transferEdition(uint256 _tokenId, uint256 _editionId, address to){
-        safeTransferEdition();
-    }
-}
-
-
-contract BaokuDigitalizedProducts is ERC721, Ownable {
-    using SafeMath for uint256;
-    using EnumerableSet for EnumerableSet.UintSet;
-
-    event TransferredSingleEdition(uint256 indexed tokenId, uint256 indexed editionId, address from, address to);
-    event TransferredBatchEdition(uint256 indexed tokenId, address from, address[] to);
-    event TokenIssued(uint256 indexed tokenId, uint256 indexed amount, address indexed to);
-
-    struct digitalizedProducts {
-        string name;
-        string author;
-        string issuer;
-        string copyRightOwner;
-        string producer;
-        string designer;
-    }
-
-    // @dev this is used to record NFT meta data
-    struct digitalizedProductsMeta{
-        string name; //名称
-        string productId; // 商品编号
-        string productType; //商品类型
-        string authors; //作者
-        string copyRightOwner; //版权所有人
-    }
-
-
-    struct artworkCategory {
-        uint256 categoryId;
-        string typeName;
-        string image;
-        uint256 releases;
-        uint256 onsale;
-    }
-
-    struct artworkRelease {
-        string awReleaseId;
-        uint256 categoryId;
-        address owner;
-    }
-
-    // mapping between an nft token 2 an artwork that includes serverl categories
-    mapping(uint256 => digitalizedProducts) public tokenId2Artwork;
-    // mapping between an nft token 2 an artwork category
-    mapping(uint256 => mapping(uint256=>artworkCategory)) public tokenId2Categories;
-    // mapping between an nft token 2 the sehemed number of artwork releases
-    mapping(uint256 => uint256) public totalReleases;
-    mapping(uint256 => EnumerableSet.UintSet) private availableCategories;
-    mapping(uint256 => mapping(string=>artworkRelease)) public tokenId2Releases;
-    mapping(uint256 => string[]) public tokenId2ReleaseIds;
-    // mapping(uint256=>uint256[]) public availableCategories;
-    mapping(uint256 => mapping(address=>artworkRelease[])) public owner2Releases;
-
-    event CreateToken(uint256 indexed tokenId, string indexed artworkName);
-    event ReleaseArtwork(uint256 indexed tokenId, string awId, address indexed newOwner);
-    event TransferArtworkRelease(uint256 indexed tokenId, string awReleaseId, address owner, address newOwner);
-
-    constructor(string memory name, string memory symbol)  ERC721(name, symbol) {
-    }
-
-    function releaseBalanceOfOwner(uint256 tokenId, address owner) public view returns (uint256){
-        return owner2Releases[tokenId][owner].length;
-    }
-
-    function getAvailableCategorieByIndex(uint256 tokenId, uint256 _index) public view returns (uint256) {
-        return availableCategories[tokenId].at(_index);
-    }
-
-    function mintToken(uint256 tokenId, digitalizedProducts memory aw, artworkCategory[] memory categories, string memory tokenURI, uint256 totalRelease, address tokenOwner) public onlyOwner {
-        require(totalRelease > 0 && categories.length > 0 && categories.length < 10, "either totalRelease < 1 or number of artwork categories not correct");
-        tokenId2Artwork[tokenId]=aw;
-        uint256 checkoutReleaseNum;
-        // artworkRelease[] storage awrs;
-        for(uint256 i=0; i < categories.length; i++) {
-            artworkCategory memory _category = categories[i];
-            _category.onsale = _category.releases;
-            checkoutReleaseNum = checkoutReleaseNum.add(_category.releases);
-            tokenId2Categories[tokenId][_category.categoryId] = _category;
-            // artworkRelease memory awr = artworkRelease(_category.categoryId, msg.sender);
-            require(!availableCategories[tokenId].contains(_category.categoryId), "replicated category Id");
-            availableCategories[tokenId].add(_category.categoryId);
-            // for (uint8 j=0; j < _category.releases; j++) {
-            //     awrs.push(awr);
-            // }
-        }
-        require(checkoutReleaseNum == totalRelease, "release numbers do not match the total releases");
-        totalReleases[tokenId] = totalRelease;
-        // tokenId2ArtworkReleases[tokenId] = awrs;
-        totalSupply().add(1);
-        _safeMint(tokenOwner, tokenId);
-        if (bytes(tokenURI).length > 0) {
-            _setTokenURI(tokenId, tokenURI);
-        }
-        emit CreateToken(tokenId, aw.name);
-    }
-
-    // function removeAvailableCategoryELement(uint256 tokenId, uint8 index) internal {
-    //     uint256[] storage acs = availableCategories[tokenId];
-    //     acs[index] = acs[acs.length -1];
-    //     acs.pop();
-    // }
-
-
-    function releaseArtwork(uint256 tokenId, uint256 categoryId, string memory awReleaseId, address newOwner) public onlyOwner{
-        require(_exists(tokenId), "releaseArtwork: nonexistent token");
-
-        artworkCategory storage awc = tokenId2Categories[tokenId][categoryId];
-        require(awc.onsale > 0, "awc has been sold out"); // this should not be triggered, since we fetch category from the available list
-        awc.onsale--;
-        if (awc.onsale < 1) {
-            availableCategories[tokenId].remove(categoryId);
-            // removeAvailableCategoryELement(tokenId, artworkCategoryIndex);
-        }
-        artworkRelease memory awRelease = artworkRelease(awReleaseId, categoryId, newOwner);
-
-        require(tokenId2Releases[tokenId][awReleaseId].owner == address(0),"already existed release");
-        emit TransferArtworkRelease(tokenId, awReleaseId, address(0), msg.sender);
-        tokenId2ReleaseIds[tokenId].push(awReleaseId);
-        tokenId2Releases[tokenId][awReleaseId] = awRelease;
-        owner2Releases[tokenId][newOwner].push(awRelease);
-        emit TransferArtworkRelease(tokenId, awReleaseId, msg.sender, newOwner);
-        emit ReleaseArtwork(tokenId, awReleaseId, newOwner);
-    }
-
-
-
-    function transferArtworkRelease(uint256 tokenId, string memory awReleaseId, address newOwner) public {
-        require(_exists(tokenId), "transferArtworkReleases: nonexistent token");
-        artworkRelease storage awRelease = tokenId2Releases[tokenId][awReleaseId];
-        require(awRelease.owner == msg.sender, "msg sender is not the release owner");
-        artworkRelease[] storage awrs = owner2Releases[tokenId][msg.sender];
-        require(awrs.length > 0, "msg sender does not have any artwork realese of this token");
-        for (uint8 i=0; i < awrs.length; i++) {
-            if (awrs[i].owner == msg.sender) {
-                awrs[i] = awrs[awrs.length -1];
-                awrs.pop();
-                break;
-            }
-        }
-        tokenId2Releases[tokenId][awReleaseId]=awRelease;
-        owner2Releases[tokenId][newOwner].push(awRelease);
-        emit TransferArtworkRelease(tokenId, awReleaseId, msg.sender, newOwner);
+    function transferEdition(uint256 _tokenId, uint256 _editionId, address _to)external{
+        require(_exists(_tokenId), "BaoKuNFT: token does not exist");
+        safeTransferEdition(_tokenId, _editionId, _to);
     }
 }
