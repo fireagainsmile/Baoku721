@@ -1927,6 +1927,10 @@ contract BaokuNFT is ERC721, Ownable{
         return super.tokenURI(tokenId);
     }
 
+    function setTokenURI(uint256 _tokenId, string memory _tokenURI) external onlyOwner{
+        _setTokenURI(_tokenId, _tokenURI);
+    }
+
     /**
      * @dev Sets `_tokenURI` as the tokenURI of `tokenId`.
      *
