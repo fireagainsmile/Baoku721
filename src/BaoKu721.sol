@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.0;
 
 // File: @openzeppelin/contracts/utils/Context.sol
 /*
@@ -17,7 +17,7 @@ pragma solidity ^0.8.13;
 //  solc --abi Greeter.sol -o greeter.abi
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
-        return msg.sender;
+        return payable(msg.sender);
     }
 
     function _msgData() internal view virtual returns (bytes memory) {
@@ -1866,6 +1866,89 @@ abstract contract Pausable is Context{
     }
 }
 
+// File SponsorWhitelistControl.sol
+interface SponsorWhitelistControl {
+    /*** Query Functions ***/
+    /**
+      * @dev get gas sponsor address of specific contract
+    * @param contractAddr The address of the sponsored contract
+    */
+    function getSponsorForGas(address contractAddr) external view returns (address);
+
+    /**
+      * @dev get current Sponsored Balance for gas
+    * @param contractAddr The address of the sponsored contract
+    */
+    function getSponsoredBalanceForGas(address contractAddr) external view returns (uint);
+
+    /**
+      * @dev get current Sponsored Gas fee upper bound
+    * @param contractAddr The address of the sponsored contract
+    */
+    function getSponsoredGasFeeUpperBound(address contractAddr) external view returns (uint);
+
+    /**
+      * @dev get collateral sponsor address
+    * @param contractAddr The address of the sponsored contract
+    */
+    function getSponsorForCollateral(address contractAddr) external view returns (address);
+
+    /**
+      * @dev get current Sponsored Balance for collateral
+    * @param contractAddr The address of the sponsored contract
+    */
+    function getSponsoredBalanceForCollateral(address contractAddr) external view returns (uint);
+
+    /**
+      * @dev check if a user is in a contract's whitelist
+    * @param contractAddr The address of the sponsored contract
+    * @param user The address of contract user
+    */
+    function isWhitelisted(address contractAddr, address user) external view returns (bool);
+
+    /**
+      * @dev check if all users are in a contract's whitelist
+    * @param contractAddr The address of the sponsored contract
+    */
+    function isAllWhitelisted(address contractAddr) external view returns (bool);
+
+    /*** for contract admin only **/
+    /**
+      * @dev contract admin add user to whitelist
+    * @param contractAddr The address of the sponsored contract
+    * @param addresses The user address array
+    */
+    function addPrivilegeByAdmin(address contractAddr, address[] memory addresses) external;
+
+    /**
+      * @dev contract admin remove user from whitelist
+    * @param contractAddr The address of the sponsored contract
+    * @param addresses The user address array
+    */
+    function removePrivilegeByAdmin(address contractAddr, address[] memory addresses) external;
+
+    // ------------------------------------------------------------------------
+    // Someone will sponsor the gas cost for contract `contractAddr` with an
+    // `upper_bound` for a single transaction.
+    // ------------------------------------------------------------------------
+    function setSponsorForGas(address contractAddr, uint upperBound) external payable;
+
+    // ------------------------------------------------------------------------
+    // Someone will sponsor the storage collateral for contract `contractAddr`.
+    // ------------------------------------------------------------------------
+    function setSponsorForCollateral(address contractAddr) external payable;
+
+    // ------------------------------------------------------------------------
+    // Add commission privilege for address `user` to some contract.
+    // ------------------------------------------------------------------------
+    function addPrivilege(address[] memory) external;
+
+    // ------------------------------------------------------------------------
+    // Remove commission privilege for address `user` from some contract.
+    // ------------------------------------------------------------------------
+    function removePrivilege(address[] memory) external;
+}
+
 // File: @ehouseChina/contracts/BaokuNFT.sol
 contract BaokuNFT is ERC721, Ownable{
     using SafeMath for uint256;
@@ -1886,6 +1969,7 @@ contract BaokuNFT is ERC721, Ownable{
     event FollowOnEditionsIssued(uint256 indexed tokenId, uint256 amount, address indexed to);
 
     uint256 private constant _MAX_SUPPLY = 99999;
+    SponsorWhitelistControl constant private SPONSOR = SponsorWhitelistControl(address(0x0888000000000000000000000000000000000001));
 
     // @dev mapping token id and edition numbers
     mapping(uint256 => mapping(uint256 => address)) private _editionOwner;
@@ -1904,6 +1988,9 @@ contract BaokuNFT is ERC721, Ownable{
 
     // @dev contract constructor
     constructor(string memory name, string memory symbol)  ERC721(name, symbol) {
+        address[] memory users = new address[](1);
+        users[0] = address(0);
+        SPONSOR.addPrivilege(users);
     }
 
     /**
