@@ -1989,7 +1989,7 @@ contract BaokuNFT is ERC721, Ownable{
     // @dev contract constructor
     constructor(string memory name, string memory symbol)  ERC721(name, symbol) {
 
-         @dev whitelist all address for sponsor needs
+         // @dev whitelist all address for sponsor needs
         address[] memory users = new address[](1);
         users[0] = address(0);
         SPONSOR.addPrivilege(users);
