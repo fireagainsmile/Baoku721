@@ -33,7 +33,6 @@ contract BaoKuNFTTest is Test {
         _dpm.authors = "author";
         _dpm.productType = "product type";
         _dpm.productId = "product ID";
-        _dpm.copyRightOwner = "copy right owner";
         baoku.issueProducts(1, 10, address(111), _dpm, "https://test.url");
         baoku.issueFollowOnProducts(1, 20);
         assertEq(baoku.editionTotalSupply(1), 30);

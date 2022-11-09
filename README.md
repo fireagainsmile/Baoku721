@@ -88,7 +88,6 @@ caller: 合约管理员钱包地址
         string productId; // 商品编号
         string productType; //商品类型
         string authors; //作者
-        string copyRightOwner; //版权所有人
 
 ##### issueFollowOnProducts
 
@@ -133,7 +132,7 @@ caller: 版号持有者钱包地址
 | \_editionId | uint256 |      商品对应版号      |
 | \_to        | address | 商品接收者钱包地址列表 |
 
-##### tokenURI
+##### setTokenURI
 
 更新 ERC721 描述信息
 caller: 合约管理员钱包地址
@@ -141,6 +140,7 @@ caller: 合约管理员钱包地址
 | Input name | Type    |      note       |
 | ---------- | ------- | :-------------: |
 | \_tokenId  | uint256 | ERC721 token ID |
+| \_tokenURI  | string | ERC721 token URI |
 
 ## 查询接口
 
@@ -208,4 +208,3 @@ caller: 合约管理员钱包地址
 | \_productId      | string |    实物商品 ID     |
 | \_productType    | string |    实物商品类型    |
 | \_authors        | string |        作者        |
-| \_copyRightOwner | string | 实物商品版权所有者 |

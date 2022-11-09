@@ -1960,7 +1960,6 @@ contract BaokuNFT is ERC721, Ownable{
         string productId; // 商品编号
         string productType; //商品类型
         string authors; //作者
-        string copyRightOwner; //版权所有人
     }
     //contracts events;
     event TransferredSingleEdition(uint256 indexed tokenId, uint256 indexed editionId, address from, address to);
@@ -2034,9 +2033,9 @@ contract BaokuNFT is ERC721, Ownable{
 
 
     // @dev get digitalized product meta data
-    function tokenMeta(uint256 _tokenId) external view returns (string memory, string memory,string memory,string memory,string memory){
+    function tokenMeta(uint256 _tokenId) external view returns (string memory, string memory,string memory,string memory){
         require(_exists(_tokenId),"BaoKuNFT: token does not exist");
-        return (_tokenMeta[_tokenId].name, _tokenMeta[_tokenId].productId, _tokenMeta[_tokenId].productType, _tokenMeta[_tokenId].authors, _tokenMeta[_tokenId].copyRightOwner);
+        return (_tokenMeta[_tokenId].name, _tokenMeta[_tokenId].productId, _tokenMeta[_tokenId].productType, _tokenMeta[_tokenId].authors );
     }
 
     // @dev get the edition total supply
